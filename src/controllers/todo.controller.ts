@@ -18,13 +18,11 @@ export class TodoController {
   getTodoById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = req.params;
-      const todo = await todoService.getTodoById(id);
-      
-      if (!todo) {
-        res.status(404).json({ error: 'Todo not found' });
+      if (!id || typeof id !== 'string') {
+        res.status(400).json({ error: 'Invalid todo ID' });
         return;
       }
-
+      const todo = await todoService.getTodoById(id);
       res.json(todo);
     } catch (error) {
       next(error);
@@ -45,11 +43,12 @@ export class TodoController {
   updateTodo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = req.params.id;
-      const updatedTodo = await todoService.updateTodo(id, req.body); 
-      if (!updatedTodo) {
-        res.status(404).json({ error: 'Todo not found' });
+      if (!id || typeof id !== 'string') {
+        res.status(400).json({ error: 'Invalid todo ID' });
         return;
       }
+
+      const updatedTodo = await todoService.updateTodo(id, req.body); 
       res.json(updatedTodo);
     } catch (error) {
       next(error);
@@ -59,12 +58,11 @@ export class TodoController {
   deleteTodo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = req.params.id;
-      const deleted = await todoService.deleteTodo(id);
-
-      if (!deleted) {
-        res.status(404).json({ error: 'Todo not found' });
+      if (!id || typeof id !== 'string') {
+        res.status(400).json({ error: 'Invalid todo ID' });
         return;
-      }         
+      }
+      const deleted = await todoService.deleteTodo(id);
       res.status(204).send();
     } catch (error) {
       next(error);

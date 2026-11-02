@@ -12,7 +12,7 @@ import { errorHandler } from './middleware/error.middleware';
 
 dotenv.config();
 
-const app = express();
+export const app = express(); // export permet à supertest de démarrer le serveur pour nous par magie! (<3)
 const port = process.env.PORT || 3001;
 
 app.use(helmet());
