@@ -17,25 +17,20 @@ export class TodoService {
     return await todoRepository.findById(id);
   }
 
-  async createTodo(data: CreateTodoRequest)/* UNCOMMENT ME: Promise<Todo>*/ {
+  async createTodo(data: CreateTodoRequest): Promise<Todo> {
+  const id = uuidv4();
+  const now = new Date();
 
-    // Dans le service, on crée un bel objet tout propre à partir des données reçues.
-    // On génère un ID unique pour le todo.
-    const id = uuidv4();
-    const now = new Date();
-    // quand on crée un todo, qu'est-ce qui est requis ?
-    // qu'est-ce qui est optionnel (qu'on peut définir par défaut) ?
-    
-    // const todo = {
-    //   id,
-    //   text: ,
-    //   isCompleted: , 
-    //   createdAt: , // Date de création
-    //   updatedAt // meme date que celle de creation pour la mise à jour.
-    // };
-    // On appel le repo pour créer le todo.
-    // Ensuite, on retourne le todo créé au contrôleur.
-  }
+  const todo: Todo = {
+    id,
+    text: data.text,
+    isCompleted: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  return await todoRepository.create(todo);
+}
 
   async updateTodo(id: string, data: UpdateTodoRequest) :Promise<Todo | null> {
     // Valider l'ID

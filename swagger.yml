@@ -1,93 +1,821 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
-  title: Todo API
+  title: 'Todo API'
   version: 1.0.0
+  description: 'API Express avec authentification par session. Executer POST /auth/login pour recevoir le cookie userAuth, puis appeler les routes protegees depuis la meme origine. Le navigateur gere le cookie HttpOnly automatiquement.'
 servers:
-- url: http://localhost:3001/api/
+  -
+    url: /
+    description: 'Serveur qui heberge Swagger UI'
+tags:
+  -
+    name: Authentification
+  -
+    name: Todos
+  -
+    name: Systeme
+  -
+    name: Utilisateurs
 paths:
-  /todos:
-    get:
-      summary: Get all todos
-      responses:
-        200:
-          description: Successful response
-          content:
-            application/json:
-              example:
-                - id: "550e8400-e29b-41d4-a716-446655440000"
-                  isCompleted: true
-                  createdAt: "2023-10-19T00:00:00.000Z"
-                  updatedAt: "2023-10-19T00:00:00.000Z"
-                  text: "todo completed"
-                - id: "550e8400-e29b-41d4-a716-446655440001"
-                  isCompleted: false
-                  createdAt: "2023-10-19T00:00:00.000Z"
-                  updatedAt: "2023-10-19T00:00:00.000Z"
-                  text: "todo not completed"
-  /todo:
+  /auth/login:
     post:
-      summary: Create a new todo
+      tags:
+        - Authentification
+      operationId: login
+      summary: 'Se connecter et recevoir un cookie de session'
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required:
+                - email
+                - password
               properties:
-                text:
+                email:
                   type: string
+                  format: email
+                  example: client@example.com
+                password:
+                  type: string
+                  format: password
       responses:
-        201:
-          description: Todo created
+        '200':
+          description: 'Connexion reussie. Le navigateur conserve le cookie de session.'
           content:
             application/json:
-              example:
-                - id: "550e8400-e29b-41d4-a716-446655440000"
-                  isCompleted: true
-                  createdAt: "2023-10-19T00:00:00.000Z"
-                  updatedAt: "2023-10-19T00:00:00.000Z"
-                  text: "todo completed"
-        400:
-          description: Bad request
+              schema:
+                type: object
+                required:
+                  - message
+                  - user
+                properties:
+                  message:
+                    type: string
+                    example: 'Login successful'
+                  user:
+                    $ref: '#/components/schemas/AuthenticatedUser'
+          headers:
+            Set-Cookie:
+              description: 'Cookie de session userAuth, HttpOnly, valable une heure selon la configuration actuelle.'
+              schema:
+                type: string
+                example: 'userAuth=s%3A...; Path=/; HttpOnly'
+        '401':
+          description: 'Email ou mot de passe incorrect.'
           content:
-            text/plain:
-              example: "Bad todo"
-  /todo/{id}:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 'Invalid email or password'
+        '500':
+          description: 'Erreur interne ou erreur de session.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /health:
+    get:
+      tags:
+        - Systeme
+      operationId: getHealth
+      summary: 'Verifier le serveur et la base de donnees'
+      security: []
+      responses:
+        '200':
+          description: 'API et base de donnees disponibles.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '500':
+          description: 'Echec du controle de sante.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: 'Base de donnees indisponible.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /ping:
+    get:
+      tags:
+        - Systeme
+      operationId: ping
+      summary: 'Verifier que le serveur repond'
+      security: []
+      responses:
+        '200':
+          description: 'Serveur disponible.'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                  - timestamp
+                properties:
+                  message:
+                    type: string
+                    example: pong
+                  timestamp:
+                    type: string
+                    format: date-time
+  /todo/todos:
+    get:
+      tags:
+        - Todos
+      operationId: getAllTodos
+      summary: 'Lister les todos'
+      security:
+        -
+          sessionCookie: []
+      responses:
+        '200':
+          description: 'Liste des todos.'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Todo'
+        '401':
+          description: 'Session absente ou expiree.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Tu dois etre connecte.'
+        '500':
+          description: 'Erreur interne du serveur.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /todo/todo:
+    post:
+      tags:
+        - Todos
+      operationId: createTodo
+      summary: 'Creer un todo'
+      security:
+        -
+          sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTodo'
+      responses:
+        '201':
+          description: 'Todo cree.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '401':
+          description: 'Session absente ou expiree.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Tu dois etre connecte.'
+        '500':
+          description: 'Erreur interne du serveur.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  '/todo/todo/{id}':
     parameters:
-      - name: id
+      -
+        name: id
         in: path
         required: true
-        description: The ID of the todo
+        description: 'Identifiant du todo.'
         schema:
           type: string
+          format: uuid
+    get:
+      tags:
+        - Todos
+      operationId: getTodoById
+      summary: 'Obtenir un todo'
+      security:
+        -
+          sessionCookie: []
+      responses:
+        '200':
+          description: 'Todo trouve.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          description: 'ID invalide.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 'Session absente ou expiree.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Tu dois etre connecte.'
+        '404':
+          description: 'Todo introuvable.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 'Erreur interne du serveur.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     patch:
-      summary: Update a todo's completion status
+      tags:
+        - Todos
+      operationId: updateTodo
+      summary: 'Modifier un todo'
+      description: 'Le service actuel affecte les deux champs; fournir text et isCompleted.'
+      security:
+        -
+          sessionCookie: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                isCompleted:
-                  type: boolean
-                text:
-                  type: string
+              $ref: '#/components/schemas/UpdateTodo'
       responses:
-        204:
-          description: Todo patched
-        400:
-          description: Bad request
+        '200':
+          description: 'Todo modifie.'
           content:
-            text/plain:
-              example: "Bad todo"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          description: 'ID invalide.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 'Session absente ou expiree.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Tu dois etre connecte.'
+        '404':
+          description: 'Todo introuvable.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 'Erreur interne du serveur.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
-      summary: Delete a todo
+      tags:
+        - Todos
+      operationId: deleteTodo
+      summary: 'Supprimer un todo'
+      security:
+        -
+          sessionCookie: []
       responses:
-        204:
-          description: Todo deleted
-        400:
-          description: Bad request
+        '204':
+          description: 'Todo supprime, sans corps de reponse.'
+        '400':
+          description: 'ID invalide.'
           content:
-            text/plain:
-              example: "Bad todo"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 'Session absente ou expiree.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Tu dois etre connecte.'
+        '404':
+          description: 'Todo introuvable.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 'Erreur interne du serveur.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /user/users:
+    get:
+      tags:
+        - Utilisateurs
+      operationId: getAllUsers
+      summary: 'Lister les utilisateurs'
+      security:
+        -
+          sessionCookie: []
+      responses:
+        '200':
+          description: 'Liste des utilisateurs.'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          description: 'Session absente ou expiree.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Tu dois etre connecte.'
+        '500':
+          description: 'Erreur interne du serveur.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /user/user:
+    post:
+      tags:
+        - Utilisateurs
+      operationId: createUser
+      summary: 'Creer un utilisateur'
+      security:
+        -
+          sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+      description: 'Route protegee par session selon le montage prevu; une connexion est necessaire pour creer un utilisateur.'
+      responses:
+        '201':
+          description: 'Utilisateur cree.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: 'Session absente ou expiree.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Tu dois etre connecte.'
+        '500':
+          description: 'Erreur interne du serveur.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  '/user/user/{id}':
+    parameters:
+      -
+        name: id
+        in: path
+        required: true
+        description: 'Identifiant de l utilisateur.'
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - Utilisateurs
+      operationId: getUserById
+      summary: 'Obtenir un utilisateur'
+      security:
+        -
+          sessionCookie: []
+      responses:
+        '200':
+          description: 'Utilisateur trouve.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: 'ID invalide.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 'Session absente ou expiree.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Tu dois etre connecte.'
+        '404':
+          description: 'Utilisateur introuvable.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 'Erreur interne du serveur.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags:
+        - Utilisateurs
+      operationId: updateUser
+      summary: 'Modifier un utilisateur'
+      security:
+        -
+          sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUser'
+      description: 'Le service actuel ne modifie que email et password. Il affecte password directement, sans hachage bcrypt.'
+      responses:
+        '200':
+          description: 'Utilisateur modifie.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: 'ID invalide.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 'Session absente ou expiree.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Tu dois etre connecte.'
+        '404':
+          description: 'Utilisateur introuvable.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 'Erreur interne du serveur.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - Utilisateurs
+      operationId: deleteUser
+      summary: 'Supprimer un utilisateur'
+      security:
+        -
+          sessionCookie: []
+      responses:
+        '204':
+          description: 'Utilisateur supprime, sans corps de reponse.'
+        '400':
+          description: 'ID invalide.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 'Session absente ou expiree.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Tu dois etre connecte.'
+        '404':
+          description: 'Utilisateur introuvable.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 'Erreur interne du serveur.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/register:
+    post:
+      tags:
+        - Authentification
+      operationId: register
+      summary: 'Creer un compte utilisateur'
+      description: 'Cree un compte sans ouvrir de session; appeler ensuite POST /auth/login. Necessite router.post(''/register'', authController.register) dans auth.routes.ts.'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+      responses:
+        '201':
+          description: 'Utilisateur cree. Le controleur actuel retourne aussi le hash du mot de passe.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '500':
+          description: 'Erreur lors de la creation du compte.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: userAuth
+      description: 'Cookie emis par express-session apres une connexion reussie.'
+  schemas:
+    Todo:
+      type: object
+      required:
+        - id
+        - text
+        - isCompleted
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+          example: 'Faire les courses'
+        isCompleted:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateTodo:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          example: 'Faire les courses'
+    UpdateTodo:
+      type: object
+      required:
+        - text
+        - isCompleted
+      properties:
+        text:
+          type: string
+          example: 'Faire les courses'
+        isCompleted:
+          type: boolean
+    AuthenticatedUser:
+      type: object
+      required:
+        - id
+        - firstName
+        - lastName
+        - email
+        - role
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          example: client
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        stack:
+          type: string
+          description: 'Present seulement en developpement.'
+    Health:
+      type: object
+      required:
+        - status
+        - timestamp
+        - services
+        - uptime
+      properties:
+        status:
+          type: string
+          enum:
+            - healthy
+            - unhealthy
+        timestamp:
+          type: string
+          format: date-time
+        services:
+          type: object
+          properties:
+            api:
+              type: string
+              enum:
+                - healthy
+            database:
+              type: string
+              enum:
+                - healthy
+                - unhealthy
+        uptime:
+          type: number
+          description: 'Duree de fonctionnement en secondes.'
+        version:
+          type: string
+        databaseError:
+          type: string
+        error:
+          type: string
+        details:
+          type: string
+    User:
+      type: object
+      required:
+        - id
+        - firstName
+        - lastName
+        - email
+        - role
+        - createdAt
+        - updatedAt
+        - password
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          example: client
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        password:
+          type: string
+          description: 'Champ actuellement retourne par les controleurs utilisateurs (hash bcrypt a la creation).'
+    CreateUser:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+        - password
+        - role
+      properties:
+        firstName:
+          type: string
+          maxLength: 100
+          example: Alex
+        lastName:
+          type: string
+          maxLength: 100
+          example: Tremblay
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          example: alex@example.com
+        password:
+          type: string
+          format: password
+          example: ExempleMotDePasse123!
+        role:
+          type: string
+          maxLength: 20
+          example: client
+    UpdateUser:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: alex@example.com
+        password:
+          type: string
+          format: password
+    Register:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+        - password
+        - role
+      properties:
+        firstName:
+          type: string
+          maxLength: 100
+          example: Alex
+        lastName:
+          type: string
+          maxLength: 100
+          example: Tremblay
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          example: alex@example.com
+        password:
+          type: string
+          format: password
+          example: ExempleMotDePasse123!
+        role:
+          type: string
+          maxLength: 20
+          example: client

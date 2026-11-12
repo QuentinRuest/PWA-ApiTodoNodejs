@@ -10,3 +10,13 @@ export const todos = mysqlTable('todos', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 });
+export const users = mysqlTable('users', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  firstName: varchar('first_name', { length: 100}).notNull(),
+  lastName: varchar('last_name', { length: 100}).notNull(),
+  email: varchar('email', { length: 100}).notNull(),
+  password: varchar('password', { length: 200}).notNull(),
+  role: varchar('role', { length: 20}).default('client').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+})

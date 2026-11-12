@@ -18,6 +18,11 @@ export class TodoController {
   getTodoById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = req.params;
+        
+        if (typeof id !== 'string') {
+          res.status(400).json({ error: 'ID invalide' });
+          return;
+        }
       const todo = await todoService.getTodoById(id);
       
       if (!todo) {
@@ -45,6 +50,10 @@ export class TodoController {
   updateTodo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = req.params.id;
+      if (typeof id !== 'string') {
+        res.status(400).json({ error: 'ID invalide' });
+        return;
+      }
       const updatedTodo = await todoService.updateTodo(id, req.body); 
       if (!updatedTodo) {
         res.status(404).json({ error: 'Todo not found' });
@@ -59,6 +68,10 @@ export class TodoController {
   deleteTodo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = req.params.id;
+      if (typeof id !== 'string') {
+        res.status(400).json({ error: 'ID invalide' });
+        return;
+      }
       const deleted = await todoService.deleteTodo(id);
 
       if (!deleted) {
