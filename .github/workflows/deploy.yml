@@ -45,6 +45,25 @@ jobs:
           umask 077
           printf '%s\n' "$ENV_PRODUCTION" > publish/.env
 
+      - name: Check Node.js on VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -eu
+
+            /usr/bin/node --version
+            npm --version
+
+            /usr/bin/node -e "
+              if (Number(process.versions.node.split('.')[0]) !== 26) {
+                console.error('Install Node.js 26 at /usr/bin/node on the VPS.');
+                process.exit(1);
+              }
+            "
+
       - name: Upload to VPS
         uses: appleboy/scp-action@v1
         with:
@@ -68,21 +87,26 @@ jobs:
             set -eu
 
             cd "/var/www/quadrivago/releases/$RELEASE_ID"
+
             chmod 600 .env
             npm ci --omit=dev
 
             ln -sfn "/var/www/quadrivago/releases/$RELEASE_ID" \
               /var/www/quadrivago/current
 
-            sudo -n systemctl restart quadrivago
+            systemctl restart quadrivago
 
             for attempt in $(seq 1 15); do
-              if curl --fail --silent http://127.0.0.1:3001/ping; then
+              if systemctl is-active --quiet quadrivago &&
+                 curl --fail --silent http://127.0.0.1:3001/ping; then
                 echo "API is running"
                 exit 0
               fi
+
               sleep 2
             done
 
-            sudo -n systemctl status quadrivago --no-pager
+            echo "Backend startup failed"
+            systemctl status quadrivago --no-pager || true
+            journalctl -u quadrivago -n 60 --no-pager
             exit 1
