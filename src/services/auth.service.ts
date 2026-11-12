@@ -24,6 +24,15 @@ export class AuthService {
     const now = new Date();
     // quand on crée un utilisateur, qu'est-ce qui est requis ?
     // qu'est-ce qui est optionnel (qu'on peut définir par défaut) ?
+    // L.27 à 35 sont CHATGPT
+    const existingUser = await userRepository.FindByEmail(data.email);
+
+    if (existingUser) {
+    throw Object.assign(
+        new Error('Ce courriel est déjà utilisé'),
+        { statusCode: 409 },
+    );
+    }
     
     const user = {
       id,

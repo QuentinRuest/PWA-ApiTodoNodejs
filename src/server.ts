@@ -22,7 +22,7 @@ if (!secret) {
   throw new Error('COOKIE_SECRET est manquant');
 }
 
-const app = express();
+export const app = express();
 const port = process.env.PORT || 3001;
 
 app.use(helmet());

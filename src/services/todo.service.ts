@@ -10,7 +10,10 @@ export class TodoService {
     return await todoRepository.findAll();
   }
 
-  async getTodoById(id: string): Promise<Todo> {
+  async getTodoById(id: string): Promise<Todo | null> {
+    if (!id || typeof id !== 'string') {
+      throw new Error('Invalid todo ID');
+    }
     return await todoRepository.findById(id);
   }
 
@@ -32,6 +35,9 @@ export class TodoService {
   async updateTodo(id: string, data: UpdateTodoRequest) :Promise<Todo | null> {
     // Valider l'ID
     const todoToUpdate = await this.getTodoById(id);
+    if (!todoToUpdate) {
+      return null;
+    }
 
     todoToUpdate.updatedAt = new Date();
     todoToUpdate.text = data.text;
@@ -43,8 +49,15 @@ export class TodoService {
 
   async deleteTodo(id: string) {
     const todoToUpdate = await this.getTodoById(id);
+    if (!todoToUpdate) {
+      return null;
+    }
     await todoRepository.delete(id);
     return todoToUpdate;
   }
+
+
+  // Les autres actions du service (update, delete, etc.) peuvent être ajoutées ici
+  
 }
 
