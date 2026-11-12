@@ -29,7 +29,7 @@ export class TodoController {
         res.status(404).json({ error: 'Todo not found' });
         return;
       }
-
+      const todo = await todoService.getTodoById(id);
       res.json(todo);
     } catch (error) {
       next(error);
@@ -59,6 +59,8 @@ export class TodoController {
         res.status(404).json({ error: 'Todo not found' });
         return;
       }
+
+      const updatedTodo = await todoService.updateTodo(id, req.body); 
       res.json(updatedTodo);
     } catch (error) {
       next(error);
@@ -77,7 +79,8 @@ export class TodoController {
       if (!deleted) {
         res.status(404).json({ error: 'Todo not found' });
         return;
-      }         
+      }
+      const deleted = await todoService.deleteTodo(id);
       res.status(204).send();
     } catch (error) {
       next(error);
